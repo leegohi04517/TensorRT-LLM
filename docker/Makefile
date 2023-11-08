@@ -62,7 +62,7 @@ endef
 	@echo "Pushing docker image: $(IMAGE_WITH_TAG)"
 	docker push $(IMAGE_WITH_TAG)$(IMAGE_TAG_SUFFIX)
 
-DOCKER_RUN_OPTS   ?= -it --ipc=host --ulimit memlock=-1 --ulimit stack=67108864
+DOCKER_RUN_OPTS   ?= -it -p 8000:8000 --ipc=host --ulimit memlock=-1 --ulimit stack=67108864
 DOCKER_RUN_ARGS   ?=
 GPU_OPTS          ?= --gpus=all
 SOURCE_DIR        ?= $(shell readlink -f ..)
