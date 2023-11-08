@@ -1,0 +1,7 @@
+[app]
+env = dev
+
+[log]
+level = 20
+console_log_level = 20
+filename = ./log/app.log

@@ -13,3 +13,6 @@ cuda-python==12.2.0
 sentencepiece>=0.1.99
 wheel
 lark
+fastapi
+uvicorn
+pydantic < 2  # Required for OpenAI server.
