@@ -31,7 +31,7 @@ from tensorrt_llm.network import net_guard
 from tensorrt_llm.plugin.plugin import ContextFMHAType
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
-from examples.gptj.weight import load_from_hf_gpt_j
+from weight import load_from_hf_gpt_j
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from utils.util import getSMVersion
