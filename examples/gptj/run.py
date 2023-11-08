@@ -232,7 +232,7 @@ def generate(
     session_time = time.time()
     print(f"session cost time:{session_time-load_time}")
 
-    for i in 4:
+    for i in range(4):
         session_time = time.time()
         input_ids, input_lengths = parse_input(input_text, input_file, tokenizer,
                                                PAD_ID,
