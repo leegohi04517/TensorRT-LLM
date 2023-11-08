@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import time
 import argparse
 import csv
 import json
@@ -218,11 +219,18 @@ def generate(
 
     engine_name = get_engine_name('gptj', dtype, world_size, runtime_rank)
     serialize_path = Path(engine_dir) / engine_name
+    print(f"engine_name:{engine_name} path:{serialize_path}")
+    start_time = time.time()
     with open(serialize_path, 'rb') as f:
         engine_buffer = f.read()
+    print(f"read engine buffer")
+    load_time = time.time()
+    print(f"load cost time:{load_time-start_time}")
     decoder = tensorrt_llm.runtime.GenerationSession(model_config,
                                                      engine_buffer,
                                                      runtime_mapping)
+    session_time = time.time()
+    print(f"session cost time:{session_time-load_time}")
 
     input_ids, input_lengths = parse_input(input_text, input_file, tokenizer,
                                            PAD_ID,
@@ -233,12 +241,16 @@ def generate(
                   max_input_length,
                   max_output_len,
                   beam_width=num_beams)
+    setup_time = time.time()
+    print(f"setup_time cost:{setup_time-session_time}")
 
     outputs = decoder.decode(input_ids,
                              input_lengths,
                              sampling_config,
                              output_sequence_lengths=True,
                              return_dict=True)
+    output_time = time.time()
+    print(f"output_time cost:{output_time-setup_time}")
     output_ids = outputs['output_ids']
     sequence_lengths = outputs['sequence_lengths']
     torch.cuda.synchronize()
