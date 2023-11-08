@@ -14,6 +14,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
 import tensorrt_llm
+import app
 from app.api.protocol import (
     CompletionResponse, ErrorResponse, CompletionRequest, CompletionResponseChoice
 )
