@@ -213,7 +213,7 @@ def create_session(log_level: str = 'error', engine_dir: str = 'gpt_outputs', hf
 @app.on_event("startup")
 async def startup_event():
     init_log(config.log)
-    create_session(engine_dir="examples/gptj/pygmalion-6b-engine", hf_model_location="examples/gptj/pygmalion-6b")
+    create_session(engine_dir="./pygmalion-6b-engine", hf_model_location="./pygmalion-6b")
 
 
 if __name__ == "__main__":
