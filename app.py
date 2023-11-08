@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import time
 import uuid
@@ -14,12 +13,12 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
 import tensorrt_llm
-from app.api.protocol import (
+from examples.gptj.app import (
     CompletionResponse, ErrorResponse, CompletionRequest, CompletionResponseChoice
 )
-from app.conf.config import config
-from app.pyutil.log.log import _request_id_ctx_var
-from app.pyutil.log.log import init as init_log
+from examples.gptj.app import config
+from examples.gptj.app.pyutil.log.log import _request_id_ctx_var
+from examples.gptj.app.pyutil.log.log import init as init_log
 from examples.gptj.build import get_engine_name  # isort:skip
 from examples.gptj.run import read_config, parse_input
 from examples.gptj.utils import token_encoder
