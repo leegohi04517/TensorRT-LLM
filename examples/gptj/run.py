@@ -232,36 +232,35 @@ def generate(
     session_time = time.time()
     print(f"session cost time:{session_time-load_time}")
 
-    for i in range(4):
-        session_time = time.time()
-        input_ids, input_lengths = parse_input(input_text, input_file, tokenizer,
-                                               PAD_ID,
-                                               model_config.remove_input_padding)
+    session_time = time.time()
+    input_ids, input_lengths = parse_input(input_text, input_file, tokenizer,
+                                           PAD_ID,
+                                           model_config.remove_input_padding)
 
-        max_input_length = torch.max(input_lengths).item()
-        decoder.setup(input_lengths.size(0),
-                      max_input_length,
-                      max_output_len,
-                      beam_width=num_beams)
-        setup_time = time.time()
-        print(f"setup_time index:{i} cost:{setup_time-session_time}")
+    max_input_length = torch.max(input_lengths).item()
+    decoder.setup(input_lengths.size(0),
+                  max_input_length,
+                  max_output_len,
+                  beam_width=num_beams)
+    setup_time = time.time()
+    print(f"setup_time cost:{setup_time-session_time}")
 
-        outputs = decoder.decode(input_ids,
-                                 input_lengths,
-                                 sampling_config,
-                                 output_sequence_lengths=True,
-                                 return_dict=True)
-        output_time = time.time()
-        print(f"output_time index:{i} cost:{output_time-setup_time}")
-        output_ids = outputs['output_ids']
-        sequence_lengths = outputs['sequence_lengths']
-        torch.cuda.synchronize()
+    outputs = decoder.decode(input_ids,
+                             input_lengths,
+                             sampling_config,
+                             output_sequence_lengths=True,
+                             return_dict=True)
+    output_time = time.time()
+    print(f"output_time cost:{output_time-setup_time}")
+    output_ids = outputs['output_ids']
+    sequence_lengths = outputs['sequence_lengths']
+    torch.cuda.synchronize()
 
-        cum_log_probs = decoder.cum_log_probs if num_beams > 1 else None
+    cum_log_probs = decoder.cum_log_probs if num_beams > 1 else None
 
-        if runtime_rank == 0:
-            print_output(output_ids, cum_log_probs, input_lengths, sequence_lengths,
-                         tokenizer, output_csv, output_npy)
+    if runtime_rank == 0:
+        print_output(output_ids, cum_log_probs, input_lengths, sequence_lengths,
+                     tokenizer, output_csv, output_npy)
 
 
 if __name__ == '__main__':

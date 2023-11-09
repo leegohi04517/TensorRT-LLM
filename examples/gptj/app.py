@@ -69,7 +69,7 @@ async def completions(raw_request: Request):
     # if request.source != "GGCes6JvB6TM3x7KuirR":
     #     return create_error_response(HTTPStatus.BAD_REQUEST,
     #                                  "invalid source")
-    output_texts = generate(input_text=request.prompt, max_output_len=request.max_tokens)
+    output_texts = generate(input_text=request.prompt, max_output_len=request.max_tokens, min_length=request.n, )
     choices = []
     for i in range(len(output_texts)):
         choices.append(CompletionResponseChoice(
@@ -129,29 +129,26 @@ def get_outputs(output_ids, cum_log_probs, input_lengths, sequence_lengths,
 
 
 def generate(
-        max_output_len: int,
-        input_text: str = 'Born in north-east France, Soyer trained as a',
+        request: CompletionRequest = None,
         input_file: str = None,
         output_csv: str = None,
         output_npy: str = None,
-        num_beams: int = 1,
-        min_length: int = 1,
 ):
     global decoder, tokenizer, model_config
     sampling_config = SamplingConfig(end_id=END_ID,
                                      pad_id=PAD_ID,
-                                     num_beams=num_beams,
-                                     min_length=min_length)
+                                     num_beams=request.beam_width,
+                                     min_length=request.n)
     session_time = time.time()
-    input_ids, input_lengths = parse_input(input_text, input_file, tokenizer,
+    input_ids, input_lengths = parse_input(request.prompt, input_file, tokenizer,
                                            PAD_ID,
                                            model_config.remove_input_padding)
 
     max_input_length = torch.max(input_lengths).item()
     decoder.setup(input_lengths.size(0),
                   max_input_length,
-                  max_output_len,
-                  beam_width=num_beams)
+                  request.max_tokens,
+                  beam_width=request.beam_width)
     setup_time = time.time()
     print(f"setup_time cost:{setup_time - session_time}")
 
@@ -166,7 +163,7 @@ def generate(
     sequence_lengths = outputs['sequence_lengths']
     torch.cuda.synchronize()
 
-    cum_log_probs = decoder.cum_log_probs if num_beams > 1 else None
+    cum_log_probs = decoder.cum_log_probs if request.beam_width > 1 else None
 
     return get_outputs(output_ids, cum_log_probs, input_lengths, sequence_lengths,
                        tokenizer, output_csv, output_npy)
