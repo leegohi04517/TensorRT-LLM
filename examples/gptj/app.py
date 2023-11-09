@@ -151,12 +151,6 @@ def generate(
                                      min_length=request.min_length)
     sampling_config.random_seed = tensor_from_list
     session_time = time.time()
-    # # An example to stop generation when the model generate " London" on first sentence, " eventually became" on second sentence
-    stop_words_list = []
-    stop_words_list.append(request.stop)
-    stop_words_list = tensorrt_llm.runtime.to_word_list_format(stop_words_list, tokenizer)
-    stop_words_list = torch.Tensor(stop_words_list).to(torch.int32).to("cuda").contiguous()
-
     input_ids, input_lengths = parse_input(request.prompt, input_file, tokenizer,
                                            PAD_ID,
                                            model_config.remove_input_padding, n=request.n)
@@ -173,7 +167,6 @@ def generate(
                              input_lengths,
                              sampling_config,
                              output_sequence_lengths=True,
-                             stop_words_list=stop_words_list,
                              return_dict=True)
     output_time = time.time()
     print(f"output_time cost:{output_time - setup_time}")
