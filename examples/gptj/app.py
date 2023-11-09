@@ -3,7 +3,8 @@ import time
 import uuid
 from http import HTTPStatus
 from pathlib import Path
-
+import numpy as np
+import random
 import torch
 import uvicorn
 from fastapi import FastAPI, Request
@@ -134,6 +135,11 @@ def generate(
         output_csv: str = None,
         output_npy: str = None,
 ):
+    random_seed_list = []
+    for batch in range(request.n):
+        random_seed_list.append([random.randint(0, 10000)])
+    random_seed = np.array(random_seed_list).astype(np.int32)
+
     global decoder, tokenizer, model_config
     sampling_config = SamplingConfig(end_id=END_ID,
                                      pad_id=PAD_ID,
@@ -142,6 +148,7 @@ def generate(
                                      top_k=request.top_k,
                                      top_p=request.top_p,
                                      repetition_penalty=request.repetition_penalty,
+                                     random_seed=random_seed,
                                      min_length=request.min_length)
     session_time = time.time()
     input_ids, input_lengths = parse_input(request.prompt, input_file, tokenizer,
