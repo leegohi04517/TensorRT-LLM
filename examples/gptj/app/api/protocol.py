@@ -60,6 +60,7 @@ class CompletionRequest(BaseModel):
     repetition_penalty: Optional[float] = 0.0
     beam_width: Optional[int] = 1
     beam_search_diversity_rate: Optional[float] = 0.0
+    min_length: Optional[int] = 1
 
 
 class LogProbs(BaseModel):

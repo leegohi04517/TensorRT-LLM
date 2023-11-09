@@ -138,7 +138,11 @@ def generate(
     sampling_config = SamplingConfig(end_id=END_ID,
                                      pad_id=PAD_ID,
                                      num_beams=request.beam_width,
-                                     min_length=request.n)
+                                     temperature=request.temperature,
+                                     top_k=request.top_k,
+                                     top_p=request.top_p,
+                                     repetition_penalty=request.repetition_penalty,
+                                     min_length=request.min_length)
     session_time = time.time()
     input_ids, input_lengths = parse_input(request.prompt, input_file, tokenizer,
                                            PAD_ID,
