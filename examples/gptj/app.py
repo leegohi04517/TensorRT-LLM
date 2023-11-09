@@ -139,7 +139,7 @@ def generate(
     for batch in range(request.n):
         random_seed_list.append([random.randint(0, 10000)])
     # random_seed = np.array(random_seed_list).astype(np.int32)
-    tensor_from_list = torch.tensor(random_seed_list, dtype=torch.int32)
+    tensor_from_list = torch.tensor(random_seed_list, dtype=torch.int64)
     global decoder, tokenizer, model_config
     sampling_config = SamplingConfig(end_id=END_ID,
                                      pad_id=PAD_ID,
