@@ -73,10 +73,11 @@ def read_config(config_path: Path):
 
 
 def parse_input(input_text: str, input_file: str, tokenizer, pad_id: int,
-                remove_input_padding: bool):
+                remove_input_padding: bool, n: int = 1):
     input_tokens = []
     if input_file is None:
-        input_tokens.append(tokenizer.encode(input_text))
+        for i in range(n):
+            input_tokens.append(tokenizer.encode(input_text))
     else:
         if input_file.endswith('.csv'):
             with open(input_file, 'r') as csv_file:
@@ -110,7 +111,6 @@ def parse_input(input_text: str, input_file: str, tokenizer, pad_id: int,
 
 def print_output(output_ids, cum_log_probs, input_lengths, sequence_lengths,
                  tokenizer, output_csv, output_npy):
-
     num_beams = output_ids.size(1)
     if output_csv is None and output_npy is None:
         for b in range(input_lengths.size(0)):
@@ -183,16 +183,16 @@ def parse_arguments():
 
 
 def generate(
-    max_output_len: int,
-    log_level: str = 'error',
-    engine_dir: str = 'gpt_outputs',
-    input_text: str = 'Born in north-east France, Soyer trained as a',
-    input_file: str = None,
-    output_csv: str = None,
-    output_npy: str = None,
-    hf_model_location: str = 'gptj',
-    num_beams: int = 1,
-    min_length: int = 1,
+        max_output_len: int,
+        log_level: str = 'error',
+        engine_dir: str = 'gpt_outputs',
+        input_text: str = 'Born in north-east France, Soyer trained as a',
+        input_file: str = None,
+        output_csv: str = None,
+        output_npy: str = None,
+        hf_model_location: str = 'gptj',
+        num_beams: int = 1,
+        min_length: int = 1,
 ):
     tensorrt_llm.logger.set_level(log_level)
 
@@ -225,12 +225,12 @@ def generate(
         engine_buffer = f.read()
     print(f"read engine buffer")
     load_time = time.time()
-    print(f"load cost time:{load_time-start_time}")
+    print(f"load cost time:{load_time - start_time}")
     decoder = tensorrt_llm.runtime.GenerationSession(model_config,
                                                      engine_buffer,
                                                      runtime_mapping)
     session_time = time.time()
-    print(f"session cost time:{session_time-load_time}")
+    print(f"session cost time:{session_time - load_time}")
 
     session_time = time.time()
     input_ids, input_lengths = parse_input(input_text, input_file, tokenizer,
@@ -243,7 +243,7 @@ def generate(
                   max_output_len,
                   beam_width=num_beams)
     setup_time = time.time()
-    print(f"setup_time cost:{setup_time-session_time}")
+    print(f"setup_time cost:{setup_time - session_time}")
 
     outputs = decoder.decode(input_ids,
                              input_lengths,
@@ -251,7 +251,7 @@ def generate(
                              output_sequence_lengths=True,
                              return_dict=True)
     output_time = time.time()
-    print(f"output_time cost:{output_time-setup_time}")
+    print(f"output_time cost:{output_time - setup_time}")
     output_ids = outputs['output_ids']
     sequence_lengths = outputs['sequence_lengths']
     torch.cuda.synchronize()

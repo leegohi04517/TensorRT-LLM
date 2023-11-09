@@ -69,7 +69,7 @@ async def completions(raw_request: Request):
     # if request.source != "GGCes6JvB6TM3x7KuirR":
     #     return create_error_response(HTTPStatus.BAD_REQUEST,
     #                                  "invalid source")
-    output_texts = generate(input_text=request.prompt, max_output_len=request.max_tokens, min_length=request.n, )
+    output_texts = generate(request=request)
     choices = []
     for i in range(len(output_texts)):
         choices.append(CompletionResponseChoice(
@@ -142,7 +142,7 @@ def generate(
     session_time = time.time()
     input_ids, input_lengths = parse_input(request.prompt, input_file, tokenizer,
                                            PAD_ID,
-                                           model_config.remove_input_padding)
+                                           model_config.remove_input_padding, n=request.n)
 
     max_input_length = torch.max(input_lengths).item()
     decoder.setup(input_lengths.size(0),
