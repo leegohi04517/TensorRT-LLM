@@ -224,4 +224,4 @@ async def startup_event():
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, port=13883, host="0.0.0.0")
+    uvicorn.run(app, port=8888, host="0.0.0.0")
