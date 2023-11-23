@@ -1,0 +1,11 @@
+[
+    {
+        "name": "pyg-fp16",
+        "script": "python app.py",
+        "error_file": "./log/error.log",
+        "min_uptime": "200",
+        "merge_logs": true,
+        "instances": "1",
+        "exec_mode": "fork"
+    }
+]
