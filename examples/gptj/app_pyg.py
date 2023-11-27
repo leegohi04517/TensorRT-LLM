@@ -1,6 +1,6 @@
 import sys
 print(f"before:{sys.path}")
-sys.path.append("../../")
+sys.path.append("/code/tensorrt_llm")
 print(sys.path)
 import logging
 import time
