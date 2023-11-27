@@ -1,3 +1,7 @@
+import sys
+print(f"before:{sys.path}")
+sys.path.append("../../")
+print(sys.path)
 import logging
 import time
 import uuid
@@ -24,9 +28,7 @@ from build import get_engine_name  # isort:skip
 from run import read_config, parse_input
 from utils import token_encoder
 from tensorrt_llm.runtime import SamplingConfig
-import sys
-sys.path.append("../../")
-print(sys.path)
+
 
 
 # 创建一个锁对象
