@@ -3,7 +3,8 @@ import time
 import uuid
 from http import HTTPStatus
 from pathlib import Path
-
+import numpy as np
+import random
 import torch
 import uvicorn
 from fastapi import FastAPI, Request
@@ -13,15 +14,15 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
 import tensorrt_llm
-from app import (
+from app.api.protocol import (
     CompletionResponse, ErrorResponse, CompletionRequest, CompletionResponseChoice
 )
-from app import config
-from app.pyutil.log.log import _request_id_ctx_var
-from app.pyutil.log.log import init as init_log
-from build import get_engine_name  # isort:skip
-from run import read_config, parse_input
-from utils import token_encoder
+from app.conf.config import config
+from app.pyutil.log import _request_id_ctx_var
+from app.pyutil.log import init as init_log
+from examples.gptj.build import get_engine_name  # isort:skip
+from examples.gptj.run import read_config, parse_input
+from examples.gptj.utils import token_encoder
 from tensorrt_llm.runtime import SamplingConfig
 
 # 创建一个锁对象
@@ -69,7 +70,7 @@ async def completions(raw_request: Request):
     # if request.source != "GGCes6JvB6TM3x7KuirR":
     #     return create_error_response(HTTPStatus.BAD_REQUEST,
     #                                  "invalid source")
-    output_texts = generate(input_text=request.prompt, max_output_len=request.max_tokens)
+    output_texts = generate(request=request)
     choices = []
     for i in range(len(output_texts)):
         choices.append(CompletionResponseChoice(
@@ -129,29 +130,36 @@ def get_outputs(output_ids, cum_log_probs, input_lengths, sequence_lengths,
 
 
 def generate(
-        max_output_len: int,
-        input_text: str = 'Born in north-east France, Soyer trained as a',
+        request: CompletionRequest = None,
         input_file: str = None,
         output_csv: str = None,
         output_npy: str = None,
-        num_beams: int = 1,
-        min_length: int = 1,
 ):
+    random_seed_list = []
+    for batch in range(request.n):
+        random_seed_list.append([random.randint(0, 10000)])
+    # random_seed = np.array(random_seed_list).astype(np.int32)
+    tensor_from_list = torch.tensor(random_seed_list, dtype=torch.int64)
     global decoder, tokenizer, model_config
     sampling_config = SamplingConfig(end_id=END_ID,
                                      pad_id=PAD_ID,
-                                     num_beams=num_beams,
-                                     min_length=min_length)
+                                     num_beams=request.beam_width,
+                                     temperature=request.temperature,
+                                     top_k=request.top_k,
+                                     top_p=request.top_p,
+                                     repetition_penalty=request.repetition_penalty,
+                                     min_length=request.min_length)
+    sampling_config.random_seed = tensor_from_list
     session_time = time.time()
-    input_ids, input_lengths = parse_input(input_text, input_file, tokenizer,
+    input_ids, input_lengths = parse_input(request.prompt, input_file, tokenizer,
                                            PAD_ID,
-                                           model_config.remove_input_padding)
+                                           model_config.remove_input_padding, n=request.n)
 
     max_input_length = torch.max(input_lengths).item()
     decoder.setup(input_lengths.size(0),
                   max_input_length,
-                  max_output_len,
-                  beam_width=num_beams)
+                  request.max_tokens,
+                  beam_width=request.beam_width)
     setup_time = time.time()
     print(f"setup_time cost:{setup_time - session_time}")
 
@@ -166,7 +174,7 @@ def generate(
     sequence_lengths = outputs['sequence_lengths']
     torch.cuda.synchronize()
 
-    cum_log_probs = decoder.cum_log_probs if num_beams > 1 else None
+    cum_log_probs = decoder.cum_log_probs if request.beam_width > 1 else None
 
     return get_outputs(output_ids, cum_log_probs, input_lengths, sequence_lengths,
                        tokenizer, output_csv, output_npy)
@@ -212,8 +220,8 @@ def create_session(log_level: str = 'error', engine_dir: str = 'gpt_outputs', hf
 @app.on_event("startup")
 async def startup_event():
     init_log(config.log)
-    create_session(engine_dir="examples/gptj/pygmalion-6b-engine", hf_model_location="examples/gptj/pygmalion-6b")
+    create_session(engine_dir="./examples/gptj/pygmalion-6b-engine", hf_model_location="./examples/gptj/pygmalion-6b")
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, port=13883, host="0.0.0.0")
+    uvicorn.run(app, port=8888, host="0.0.0.0")
