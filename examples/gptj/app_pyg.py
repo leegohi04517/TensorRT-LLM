@@ -20,9 +20,9 @@ from app.api.protocol import (
 from app.conf.config import config
 from app.pyutil.log import _request_id_ctx_var
 from app.pyutil.log import init as init_log
-from examples.gptj.build import get_engine_name  # isort:skip
-from examples.gptj.run import read_config, parse_input
-from examples.gptj.utils import token_encoder
+from build import get_engine_name  # isort:skip
+from run import read_config, parse_input
+from utils import token_encoder
 from tensorrt_llm.runtime import SamplingConfig
 
 # 创建一个锁对象
@@ -220,7 +220,7 @@ def create_session(log_level: str = 'error', engine_dir: str = 'gpt_outputs', hf
 @app.on_event("startup")
 async def startup_event():
     init_log(config.log)
-    create_session(engine_dir="./examples/gptj/pygmalion-6b-engine", hf_model_location="./examples/gptj/pygmalion-6b")
+    create_session(engine_dir="./pygmalion-6b-engine", hf_model_location="./pygmalion-6b")
 
 
 if __name__ == "__main__":
