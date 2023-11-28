@@ -164,7 +164,7 @@ def generate(
                                     sampling_config,
                                     streaming=request.streaming)
     torch.cuda.synchronize()
-
+    runtime_rank = tensorrt_llm.mpi_rank()
     if request.streaming:
         for output_ids in throttle_generator(output_gen_ids,
                                              request.streaming_interval):
