@@ -61,6 +61,8 @@ class CompletionRequest(BaseModel):
     beam_width: Optional[int] = 1
     beam_search_diversity_rate: Optional[float] = 0.0
     min_length: Optional[int] = 1
+    streaming: Optional[bool] = False
+    streaming_interval: Optional[int] = 5
 
 
 class LogProbs(BaseModel):

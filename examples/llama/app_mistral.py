@@ -1,7 +1,6 @@
 import sys
-print(f"before:{sys.path}")
+
 sys.path.append("/code/tensorrt_llm")
-print(sys.path)
 import logging
 import inspect
 import time
@@ -11,6 +10,7 @@ from pathlib import Path
 import numpy as np
 import random
 import torch
+from transformers import LlamaTokenizer
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -19,7 +19,6 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
 import tensorrt_llm
-print(inspect.getfile(tensorrt_llm))
 from app.api.protocol import (
     CompletionResponse, ErrorResponse, CompletionRequest, CompletionResponseChoice
 )
@@ -31,17 +30,8 @@ from run import read_config, parse_input
 from utils import token_encoder
 from tensorrt_llm.runtime import SamplingConfig
 
-
-
-# 创建一个锁对象
-lock = None
-
-MERGES_FILE = "merges.txt"
-VOCAB_FILE = "vocab.json"
-
-PAD_ID = 50256
-START_ID = 50256
-END_ID = 50256
+EOS_TOKEN = 2
+PAD_TOKEN = 2
 
 decoder = None
 tokenizer = None
@@ -112,7 +102,16 @@ async def dispatch_request_id(request: Request, call_next):
     return response
 
 
-def get_outputs(output_ids, cum_log_probs, input_lengths, sequence_lengths,
+def throttle_generator(generator, stream_interval):
+    for i, out in enumerate(generator):
+        if not i % stream_interval:
+            yield out
+
+    if i % stream_interval:
+        yield out
+
+
+def get_outputs(output_ids, input_lengths, max_output_len,
                 tokenizer, output_csv, output_npy):
     output_texts = []
     num_beams = output_ids.size(1)
@@ -120,20 +119,14 @@ def get_outputs(output_ids, cum_log_probs, input_lengths, sequence_lengths,
         for b in range(input_lengths.size(0)):
             inputs = output_ids[b][0][:input_lengths[b]].tolist()
             input_text = tokenizer.decode(inputs)
-            print(f'Input {b}: \"{input_text}\"')
+            print(f'Input: \"{input_text}\"')
             for beam in range(num_beams):
                 output_begin = input_lengths[b]
-                output_end = sequence_lengths[b][beam]
+                output_end = input_lengths[b] + max_output_len
                 outputs = output_ids[b][beam][output_begin:output_end].tolist()
                 output_text = tokenizer.decode(outputs)
                 output_texts.append(output_text)
-                if num_beams > 1:
-                    cum_log_prob = cum_log_probs[b][beam]
-                    print(
-                        f'Output {b}, beam {beam}: \"{output_text}\" (cum_log_prob: {cum_log_prob})'
-                    )
-                else:
-                    print(f'Output {b}: \"{output_text}\"')
+                print(f'Output: \"{output_text}\"')
     return output_texts
 
 
@@ -149,8 +142,8 @@ def generate(
     # random_seed = np.array(random_seed_list).astype(np.int32)
     tensor_from_list = torch.tensor(random_seed_list, dtype=torch.int64)
     global decoder, tokenizer, model_config
-    sampling_config = SamplingConfig(end_id=END_ID,
-                                     pad_id=PAD_ID,
+    sampling_config = SamplingConfig(end_id=EOS_TOKEN,
+                                     pad_id=PAD_TOKEN,
                                      num_beams=request.beam_width,
                                      temperature=request.temperature,
                                      top_k=request.top_k,
@@ -158,78 +151,74 @@ def generate(
                                      repetition_penalty=request.repetition_penalty,
                                      min_length=request.min_length)
     sampling_config.random_seed = tensor_from_list
-    session_time = time.time()
+
     input_ids, input_lengths = parse_input(request.prompt, input_file, tokenizer,
-                                           PAD_ID,
+                                           EOS_TOKEN,
                                            model_config.remove_input_padding, n=request.n)
 
     max_input_length = torch.max(input_lengths).item()
-    decoder.setup(input_lengths.size(0),
-                  max_input_length,
-                  request.max_tokens,
-                  beam_width=request.beam_width)
-    setup_time = time.time()
-    print(f"setup_time cost:{setup_time - session_time}")
+    decoder.setup(input_lengths.size(0), max_input_length, request.max_tokens,
+                  request.beam_width)
 
-    outputs = decoder.decode(input_ids,
-                             input_lengths,
-                             sampling_config,
-                             output_sequence_lengths=True,
-                             return_dict=True)
-    output_time = time.time()
-    print(f"output_time cost:{output_time - setup_time}")
-    output_ids = outputs['output_ids']
-    sequence_lengths = outputs['sequence_lengths']
+    output_gen_ids = decoder.decode(input_ids,
+                                    input_lengths,
+                                    sampling_config,
+                                    streaming=request.streaming)
     torch.cuda.synchronize()
 
-    cum_log_probs = decoder.cum_log_probs if request.beam_width > 1 else None
+    if request.streaming:
+        for output_ids in throttle_generator(output_gen_ids,
+                                             request.streaming_interval):
+            if runtime_rank == 0:
+                return print_output(output_ids, input_lengths, request.max_tokens,
+                                    tokenizer, output_csv, output_npy)
+    else:
+        output_ids = output_gen_ids
+        if runtime_rank == 0:
+            return get_outputs(output_ids, input_lengths, request.max_tokens, tokenizer,
+                               output_csv, output_npy)
 
-    return get_outputs(output_ids, cum_log_probs, input_lengths, sequence_lengths,
-                       tokenizer, output_csv, output_npy)
 
-
-def create_session(log_level: str = 'error', engine_dir: str = 'gpt_outputs', hf_model_location: str = 'gptj', ):
+def create_session(log_level: str = 'error', engine_dir: str = 'gpt_outputs', tokenizer_dir: str = None, ):
+    global model_config
+    global tokenizer
+    global decoder
     tensorrt_llm.logger.set_level(log_level)
 
     engine_dir = Path(engine_dir)
     config_path = engine_dir / 'config.json'
-    global model_config
-    model_config, world_size, dtype, max_input_len = read_config(config_path)
+    model_config, tp_size, pp_size, dtype = read_config(config_path)
+    world_size = tp_size * pp_size
 
     runtime_rank = tensorrt_llm.mpi_rank()
     runtime_mapping = tensorrt_llm.Mapping(world_size,
                                            runtime_rank,
-                                           tp_size=world_size)
+                                           tp_size=tp_size,
+                                           pp_size=pp_size)
     torch.cuda.set_device(runtime_rank % runtime_mapping.gpus_per_node)
 
-    vocab_file = Path(hf_model_location) / VOCAB_FILE
-    merges_file = Path(hf_model_location) / MERGES_FILE
-    assert vocab_file.is_file(), f"{vocab_file} does not exist"
-    assert merges_file.is_file(), f"{merges_file} does not exist"
-    global tokenizer
-    tokenizer = token_encoder.get_encoder(vocab_file, merges_file)
-    engine_name = get_engine_name('gptj', dtype, world_size, runtime_rank)
-    serialize_path = Path(engine_dir) / engine_name
-    print(f"engine_name:{engine_name} path:{serialize_path}")
-    start_time = time.time()
+    tokenizer = LlamaTokenizer.from_pretrained(tokenizer_dir, legacy=False)
+
+    engine_name = get_engine_name('llama', dtype, tp_size, pp_size,
+                                  runtime_rank)
+    serialize_path = engine_dir / engine_name
     with open(serialize_path, 'rb') as f:
         engine_buffer = f.read()
-    print(f"read engine buffer")
-    load_time = time.time()
-    print(f"load cost time:{load_time - start_time}")
-    global decoder
     decoder = tensorrt_llm.runtime.GenerationSession(model_config,
                                                      engine_buffer,
-                                                     runtime_mapping)
-    session_time = time.time()
-    print(f"session cost time:{session_time - load_time}")
+                                                     runtime_mapping,
+                                                     debug_mode=False,
+                                                     debug_tensors_to_save=None)
+    if runtime_rank == 0:
+        print(f"Running the {dtype} engine ...")
 
 
 @app.on_event("startup")
 async def startup_event():
     init_log(config.log)
-    create_session(engine_dir="./OpenHermes-2.5-Mistral-7B/trt_engines/fp16/1-gpu/", hf_model_location="./OpenHermes-2.5-Mistral-7B/")
+    create_session(engine_dir="./OpenHermes-2.5-Mistral-7B/trt_engines/fp16/1-gpu/",
+                   tokenizer_dir="./OpenHermes-2.5-Mistral-7B/")
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, port=8888, host="0.0.0.0")
+    uvicorn.run(app, port=8886, host="0.0.0.0")
