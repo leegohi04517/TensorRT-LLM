@@ -85,11 +85,12 @@ def read_config(config_path: Path):
 
 
 def parse_input(input_text: str, input_file: str, tokenizer, end_id: int,
-                remove_input_padding: bool):
+                remove_input_padding: bool, n: int = 1):
     input_tokens = []
     if input_file is None:
-        input_tokens.append(
-            tokenizer.encode(input_text, add_special_tokens=False))
+        for i in range(n):
+            input_tokens.append(
+                tokenizer.encode(input_text, add_special_tokens=False))
     else:
         if input_file.endswith('.csv'):
             with open(input_file, 'r') as csv_file:
