@@ -75,9 +75,9 @@ def create_error_response(status_code: HTTPStatus,
 async def completions(raw_request: Request):
     request = CompletionRequest(**await raw_request.json())
     logging.info(f"Received completion request: {request}")
-    # if request.source != "GGCes6JvB6TM3x7KuirR":
-    #     return create_error_response(HTTPStatus.BAD_REQUEST,
-    #                                  "invalid source")
+    if request.source != "GGCes6JvB6TM3x7KuirR":
+        return create_error_response(HTTPStatus.BAD_REQUEST,
+                                     "invalid source")
     output_texts = generate(request=request)
     choices = []
     for i in range(len(output_texts)):
