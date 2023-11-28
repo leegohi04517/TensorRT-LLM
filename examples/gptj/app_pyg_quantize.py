@@ -20,8 +20,8 @@ from app.api.protocol import (
     CompletionResponse, ErrorResponse, CompletionRequest, CompletionResponseChoice
 )
 from app.conf.config import config
-from app.pyutil.log import _request_id_ctx_var
-from app.pyutil.log import init as init_log
+from app.pyutil.log.log import _request_id_ctx_var
+from app.pyutil.log.log import init as init_log
 from build import get_engine_name  # isort:skip
 from run import read_config, parse_input
 from utils import token_encoder
