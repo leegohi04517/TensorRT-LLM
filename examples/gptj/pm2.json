@@ -1,7 +1,7 @@
 [
     {
         "name": "pyg-fp16",
-        "script": "python app.py",
+        "script": "python app_pyg.py",
         "error_file": "./log/error.log",
         "min_uptime": "200",
         "merge_logs": true,

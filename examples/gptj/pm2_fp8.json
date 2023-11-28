@@ -1,7 +1,7 @@
 [
     {
         "name": "pyg-fp8",
-        "script": "python app_quantize.py",
+        "script": "python app_pyg_quantize.py",
         "error_file": "./log/error.log",
         "min_uptime": "200",
         "merge_logs": true,
