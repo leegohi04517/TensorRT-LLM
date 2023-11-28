@@ -169,7 +169,7 @@ def generate(
         for output_ids in throttle_generator(output_gen_ids,
                                              request.streaming_interval):
             if runtime_rank == 0:
-                return print_output(output_ids, input_lengths, request.max_tokens,
+                return get_outputs(output_ids, input_lengths, request.max_tokens,
                                     tokenizer, output_csv, output_npy)
     else:
         output_ids = output_gen_ids
