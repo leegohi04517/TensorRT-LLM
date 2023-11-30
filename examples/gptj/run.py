@@ -157,6 +157,12 @@ def print_output(output_ids, cum_log_probs, input_lengths, sequence_lengths,
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--max_output_len', type=int, required=True)
+    parser.add_argument('--max_kv_cache_len',
+                        type=int,
+                        default=None,
+                        help='The max kv cache length. \
+              If the final sequence length exceeds the kv cache length, we will enable cyclic kv cache. \
+              If it is set to None, we will use the max sequence length.')
     parser.add_argument('--log_level', type=str, default='error')
     parser.add_argument('--engine_dir', type=str, default='gpt_outputs')
     parser.add_argument('--num_beams', type=int, default=1)
@@ -190,16 +196,17 @@ def parse_arguments():
 
 
 def generate(
-        max_output_len: int,
-        log_level: str = 'error',
-        engine_dir: str = 'gpt_outputs',
-        input_text: str = 'Born in north-east France, Soyer trained as a',
-        input_file: str = None,
-        output_csv: str = None,
-        output_npy: str = None,
-        hf_model_location: str = 'gptj',
-        num_beams: int = 1,
-        min_length: int = 1,
+    max_output_len: int,
+    log_level: str = 'error',
+    engine_dir: str = 'gpt_outputs',
+    input_text: str = 'Born in north-east France, Soyer trained as a',
+    input_file: str = None,
+    output_csv: str = None,
+    output_npy: str = None,
+    hf_model_location: str = 'gptj',
+    max_kv_cache_len: int = None,
+    num_beams: int = 1,
+    min_length: int = 1,
 ):
     tensorrt_llm.logger.set_level(log_level)
 
@@ -248,10 +255,10 @@ def generate(
     decoder.setup(input_lengths.size(0),
                   max_input_length,
                   max_output_len,
-                  beam_width=num_beams)
+                  beam_width=num_beams,
+                  max_kv_cache_length=max_kv_cache_len)
     setup_time = time.time()
     print(f"setup_time cost:{setup_time - session_time}")
-
     outputs = decoder.decode(input_ids,
                              input_lengths,
                              sampling_config,
