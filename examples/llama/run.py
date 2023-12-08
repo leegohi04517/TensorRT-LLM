@@ -85,8 +85,7 @@ def read_config(config_path: Path):
 
 
 def parse_input(input_text: str, input_file: str, tokenizer, end_id: int,
-                remove_input_padding: bool, input_tokens_limit: Union[int,
-                                                                      None], n: int = 1):
+                remove_input_padding: bool, input_tokens_limit: int, n: int = 1):
     input_tokens = []
     if input_file is None:
         for i in range(n):
