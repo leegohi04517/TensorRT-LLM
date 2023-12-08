@@ -85,7 +85,8 @@ def read_config(config_path: Path):
 
 
 def parse_input(input_text: str, input_file: str, tokenizer, end_id: int,
-                remove_input_padding: bool, n: int = 1):
+                remove_input_padding: bool, input_tokens_limit: Union[int,
+                                                                      None], n: int = 1):
     input_tokens = []
     if input_file is None:
         for i in range(n):
@@ -105,6 +106,13 @@ def parse_input(input_text: str, input_file: str, tokenizer, end_id: int,
         else:
             print('Input file format not supported.')
             raise SystemExit
+
+    # Cap max input tokens
+    if input_tokens_limit is not None:
+        print(
+            f"Maximum input number of tokens found as {max([len(x) for x in input_tokens])};"
+            f" will be capped to {input_tokens_limit}")
+        input_tokens = [x[-input_tokens_limit:] for x in input_tokens]
 
     input_ids = None
     input_lengths = torch.tensor([len(x) for x in input_tokens],

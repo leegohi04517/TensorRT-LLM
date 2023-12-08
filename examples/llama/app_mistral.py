@@ -153,7 +153,7 @@ def generate(
 
     input_ids, input_lengths = parse_input(request.prompt, input_file, tokenizer,
                                            EOS_TOKEN,
-                                           model_config.remove_input_padding, n=request.n)
+                                           model_config.remove_input_padding, request.truncation_length, n=request.n)
 
     max_input_length = torch.max(input_lengths).item()
     decoder.setup(input_lengths.size(0), max_input_length, request.max_tokens,
@@ -170,7 +170,7 @@ def generate(
                                              request.streaming_interval):
             if runtime_rank == 0:
                 return get_outputs(output_ids, input_lengths, request.max_tokens,
-                                    tokenizer, output_csv, output_npy)
+                                   tokenizer, output_csv, output_npy)
     else:
         output_ids = output_gen_ids
         if runtime_rank == 0:

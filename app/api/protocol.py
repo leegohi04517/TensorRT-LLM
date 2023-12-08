@@ -63,6 +63,7 @@ class CompletionRequest(BaseModel):
     min_length: Optional[int] = 1
     streaming: Optional[bool] = False
     streaming_interval: Optional[int] = 5
+    truncation_length: Optional[int] = 2048
 
 
 class LogProbs(BaseModel):
