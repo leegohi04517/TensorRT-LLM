@@ -89,26 +89,21 @@ async def completions(raw_request: Request):
 
 
 @app.middleware("http")
-async def add_process_time(request: Request, call_next):
+async def dispatch_request_id(request: Request, call_next):
     start_time = time.time()
+    request_id = request.headers.get("x-request-id", f"{uuid.uuid4()}{int(time.time() * 1000)}")
+    token = _request_id_ctx_var.set(request_id)
     response = await call_next(request)
-
+    _request_id_ctx_var.reset(token)
+    cost_time = int((time.time() - start_time) * 1000)
     logging.info(
         f"{request.client.host} - "
         f"{request.method} "
         f"{request.url.path} "
         f"{response.status_code} "
-        f"{int((time.time() - start_time) * 1000)}ms"
+        f"{cost_time}ms"
     )
-    return response
-
-
-@app.middleware("http")
-async def dispatch_request_id(request: Request, call_next):
-    request_id = request.headers.get("x-request-id", f"{uuid.uuid4()}{int(time.time() * 1000)}")
-    token = _request_id_ctx_var.set(request_id)
-    response = await call_next(request)
-    _request_id_ctx_var.reset(token)
+    response.headers["x-process-time"] = str(cost_time)
     return response
 
 
@@ -161,7 +156,7 @@ def generate(
     session_time = time.time()
     input_ids, input_lengths = parse_input(request.prompt, input_file, tokenizer,
                                            PAD_ID,
-                                           model_config.remove_input_padding, n=request.n)
+                                           model_config.remove_input_padding, request.truncation_length, n=request.n)
 
     max_input_length = torch.max(input_lengths).item()
     decoder.setup(input_lengths.size(0),
