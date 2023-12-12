@@ -155,7 +155,7 @@ def generate(
     session_time = time.time()
     input_ids, input_lengths = parse_input(request.prompt, input_file, tokenizer,
                                            PAD_ID,
-                                           model_config.remove_input_padding, n=request.n)
+                                           model_config.remove_input_padding,request.truncation_length, n=request.n)
 
     max_input_length = torch.max(input_lengths).item()
     decoder.setup(input_lengths.size(0),
