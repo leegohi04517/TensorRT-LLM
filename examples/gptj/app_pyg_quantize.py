@@ -87,13 +87,15 @@ async def add_process_time(request: Request, call_next):
     start_time = time.time()
     response = await call_next(request)
 
+    cost_time = int((time.time() - start_time) * 1000)
     logging.info(
         f"{request.client.host} - "
         f"{request.method} "
         f"{request.url.path} "
         f"{response.status_code} "
-        f"{int((time.time() - start_time) * 1000)}ms"
+        f"{cost_time}ms"
     )
+    response.headers["X-process-time"] = str(cost_time)
     return response
 
 
